@@ -1,3 +1,4 @@
+This repository contains the code for our paper: Training with One2MultiSeq: CopyBART for Social Media Keyphrase Generation.
 ## Dataset
 
 The datasets can be downloaded from [here](https://drive.google.com/file/d/12f2HOl6uOvsnCfiofuoB19vxWEEiGy00/view?usp=share_link)
