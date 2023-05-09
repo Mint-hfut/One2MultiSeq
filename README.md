@@ -10,7 +10,7 @@ To preprocess the source data, run:
 ### Training
 To preprocess the source data, run:
 `python train_One2MultiSeq.py`
-After the training, you can change 'model_name` to the path of the trained model(for example, `model_name = 'models/temp_model/CMKP/CopyBART_One2MultiSeq_base_epochs-10_learning_rate-5e-05_batch_size-32_seed-100'`) and set "is_train = False" in One2MultiSeq_dataprocess.py
+After the training, you can change `model_name` to the path of the trained model(for example, `model_name = 'models/temp_model/CMKP/CopyBART_One2MultiSeq_base_epochs-10_learning_rate-5e-05_batch_size-32_seed-100'`) and set `is_train = False` in One2MultiSeq_dataprocess.py
 **Note:** 
 
 * Please download and unzip the datasets in the `./data` directory first. 
