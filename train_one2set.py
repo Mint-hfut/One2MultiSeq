@@ -66,7 +66,7 @@ class One2SetDataset(torch.utils.data.Dataset):
 
 
 def fetch_datasets(training_args=None):
-    print("loading valid dataset from {}".format(training_args.singe_data_args['train_data_path']+'/valid_One2Seq.pt'))
+    print("loading valid dataset from {}".format(training_args.singe_data_args['train_data_path']+f'/valid_{training_args.data_type}.pt'))
     valid_data = torch.load(training_args.singe_data_args['train_data_path']+'/valid_One2Seq.pt')
 
     if training_args.do_train:
@@ -75,7 +75,7 @@ def fetch_datasets(training_args=None):
     else:  # Reduce load time
         train_data = valid_data
     print("loading test dataset from {}".format(training_args.singe_data_args['test_data_path'][training_args.test_dataset_name]+'/test_One2Seq.pt'))
-    test_data = torch.load(training_args.singe_data_args['test_data_path'][training_args.test_dataset_name]+'/test_One2Seq.pt')
+    test_data = torch.load(training_args.singe_data_args['test_data_path'][training_args.test_dataset_name]+f'/test_{training_args.data_type}.pt')
     train_dataset = One2SetDataset(train_data)
     val_dataset = One2SetDataset(valid_data)
     test_dataset = One2SetDataset(test_data)
