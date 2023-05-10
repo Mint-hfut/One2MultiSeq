@@ -617,8 +617,7 @@ def main(seed, data_name, singe_data_args, test_dataset_name,do_train):
 
     train_dataset, val_dataset, test_dataset = fetch_datasets(training_args)
 
-    model = CopyBartForConditionalGeneration.from_pretrained(model_name,
-        encoder_input_length=training_args.encoder_input_length, seed=training_args.seed, )
+    model = One2SetBartForConditionalGeneration.from_pretrained(model_name)
     if 'KP20K' in training_args.singe_data_args['train_data_path']:
         tokenizer.add_tokens(['<eos>'], special_tokens=True)
     model.resize_token_embeddings(len(tokenizer))
