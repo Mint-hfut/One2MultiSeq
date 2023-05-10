@@ -741,7 +741,7 @@ if __name__ == "__main__":
                                },
              }
 
-        tokenizer = BartTokenizer.from_pretrained('facebook/bart-base', sep_token='<sep>')
+        tokenizer = BartTokenizer.from_pretrained('facebook/bart-base')
         tokenizer.add_tokens(['<number>', '<url>', '<mention>'], special_tokens=True)
         train_dataset = 'CMKP'#CMKP,Twitter,StackExchange,KP20K
         test_dataset_name = 'CMKP'#CMKP,Twitter,StackExchange, or kp20k,inspec,nus,krapivin,semeval
