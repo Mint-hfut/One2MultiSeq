@@ -368,7 +368,7 @@ def average_precision_at_ks(r, k_list, num_predictions, num_trgs):
         return_indices.append((k - 1) if k <= num_predictions else (num_predictions - 1))
     return_indices = np.array(return_indices, dtype=int)
     return average_precision_array[return_indices]
-def update_score_dict(trg_token_2dlist_stemmed, pred_token_2dlist_stemmed, k_list, score_dict, tag):
+def update_score_dict(trg_token_2dlist_stemmed, pred_token_2dlist_stemmed, k_list, score_dict, tag,meng_rui_precision):
     num_targets = len(trg_token_2dlist_stemmed)
     num_predictions = len(pred_token_2dlist_stemmed)
 
@@ -376,7 +376,7 @@ def update_score_dict(trg_token_2dlist_stemmed, pred_token_2dlist_stemmed, k_lis
                                     type='exact', dimension=1)
     # Classification metrics
     precision_ks, recall_ks, f1_ks, num_matches_ks, num_predictions_ks = \
-        compute_classification_metrics_at_ks(is_match, num_predictions, num_targets, k_list=k_list)
+        compute_classification_metrics_at_ks(is_match, num_predictions, num_targets, k_list=k_list,meng_rui_precision=meng_rui_precision)
 
     ap_ks = average_precision_at_ks(is_match, k_list=k_list,
                                     num_predictions=num_predictions, num_trgs=num_targets)
@@ -448,7 +448,7 @@ def remove_M(top_list):
         top_list.remove('M')
     return top_list
 
-def compute_metrics(eval_preds, num_return_sequences=1, topk_list=[5,'M'], present_tags =['all','present','absent'],src_lines=None):
+def compute_metrics(eval_preds, num_return_sequences=1, topk_list=[5,'M'], present_tags =['all','present','absent'],src_lines=None, meng_rui_precision = False):
     score_dict = defaultdict(list)
     ignore_pad_token_for_loss = True
     preds = eval_preds.predictions
@@ -484,10 +484,11 @@ def compute_metrics(eval_preds, num_return_sequences=1, topk_list=[5,'M'], prese
             for j in range(num_return_sequences):
                 index = i * num_return_sequences + j
                 for k in decoded_preds[index]:
-                    if j == 0:#Use only the keyphrases in the first sentence to calculate M
+                    if j == 0:  # Use only the keyphrases in the first sentence to calculate M
                         if k not in decoded_preds_for_cal_at_M[i] and len(k) > 1:
                             decoded_preds_for_cal_at_M[i].append(k)
-                    if k not in decoded_preds_for_cal_at_k[i] and len(k) > 1:#Use all the keyphrases in the returned sentence (beam search)
+                    if k not in decoded_preds_for_cal_at_k[i] and len(
+                            k) > 1:  # Use all the keyphrases in the returned sentence (beam search)
                         decoded_preds_for_cal_at_k[i].append(k)
         decoded_preds = decoded_preds_for_cal_at_k
         decoded_preds_for_M = decoded_preds_for_cal_at_M
@@ -495,16 +496,17 @@ def compute_metrics(eval_preds, num_return_sequences=1, topk_list=[5,'M'], prese
         decoded_preds_for_cal_at_k = [[] for _ in range(len(decoded_labels))]
         for i in range(len(decoded_labels)):
             for k in decoded_preds[i]:
-                if k not in decoded_preds_for_cal_at_k[i] and len(k) > 1:#Use all the keyphrases in the returned sentence (beam search)
+                if k not in decoded_preds_for_cal_at_k[i] and len(
+                        k) > 1:  # Use all the keyphrases in the returned sentence (beam search)
                     decoded_preds_for_cal_at_k[i].append(k)
         decoded_preds = decoded_preds_for_cal_at_k
         decoded_preds_for_M = decoded_preds
 
-    for src, pred, pred_for_M, label in zip(src_text, decoded_preds,decoded_preds_for_M, decoded_labels):
+    for src, pred, pred_for_M, label in zip(src_text, decoded_preds, decoded_preds_for_M, decoded_labels):
         trg_token_2dlist = [trg_str.strip().split(' ') for trg_str in label]
         pred_token_2dlist = [pred_str.strip().split(' ') for pred_str in pred]
         pred_token_2dlist_for_M = [pred_str.strip().split(' ') for pred_str in pred_for_M]
-        #pred_token_2dlist_for_M = [pred_str_for_M.strip().split(' ') for pred_str_for_M in pred_for_M]
+        # pred_token_2dlist_for_M = [pred_str_for_M.strip().split(' ') for pred_str_for_M in pred_for_M]
         stemmed_trg_token_2dlist = stem_str_list(trg_token_2dlist)
         stemmed_pred_token_2dlist = stem_str_list(pred_token_2dlist)
         stemmed_pred_token_2dlist_for_M = stem_str_list(pred_token_2dlist_for_M)
@@ -512,8 +514,8 @@ def compute_metrics(eval_preds, num_return_sequences=1, topk_list=[5,'M'], prese
                                                                                            True,
                                                                                            stemmed_pred_token_2dlist)
         filtered_stemmed_pred_token_2dlist_for_M, num_duplicated_predictions_for_M = filter_prediction(False,
-                                                                                           True,
-                                                                                           stemmed_pred_token_2dlist_for_M)
+                                                                                                       True,
+                                                                                                       stemmed_pred_token_2dlist_for_M)
         unique_stemmed_trg_token_2dlist, num_duplicated_trg = find_unique_target(stemmed_trg_token_2dlist)
         present_filtered_stemmed_pred, absent_filtered_stemmed_pred = separate_present_absent_by_source(
             src, filtered_stemmed_pred_token_2dlist)
@@ -526,59 +528,77 @@ def compute_metrics(eval_preds, num_return_sequences=1, topk_list=[5,'M'], prese
         if filtered_stemmed_pred_token_2dlist:
             score_dict = update_score_dict(unique_stemmed_trg_token_2dlist,
                                            filtered_stemmed_pred_token_2dlist,
-                                           topk_list_, score_dict, 'all')
+                                           topk_list_, score_dict, 'all', meng_rui_precision)
             if 'M' in topk_list:
                 score_dict = update_score_dict(unique_stemmed_trg_token_2dlist,
                                                filtered_stemmed_pred_token_2dlist,
-                                               ['M'], score_dict, 'all')
+                                               ['M'], score_dict, 'all', meng_rui_precision)
         if present_unique_stemmed_trg:
             score_dict = update_score_dict(present_unique_stemmed_trg,
                                            present_filtered_stemmed_pred,
-                                           topk_list_, score_dict, 'present')
+                                           topk_list_, score_dict, 'present', meng_rui_precision)
             if 'M' in topk_list:
                 score_dict = update_score_dict(present_unique_stemmed_trg,
                                                present_filtered_stemmed_pred_for_M,
-                                               ['M'], score_dict, 'present')
+                                               ['M'], score_dict, 'present', meng_rui_precision)
         if absent_unique_stemmed_trg:
             score_dict = update_score_dict(absent_unique_stemmed_trg,
                                            absent_filtered_stemmed_pred,
-                                           topk_list_, score_dict, 'absent')
+                                           topk_list_, score_dict, 'absent', meng_rui_precision)
             if 'M' in topk_list:
                 score_dict = update_score_dict(absent_unique_stemmed_trg,
                                                absent_filtered_stemmed_pred_for_M,
-                                               ['M'], score_dict, 'absent')
+                                               ['M'], score_dict, 'absent', meng_rui_precision)
     names = locals()
     result = {}
     for topk in topk_list:
         for present_tag in present_tags:
-            names['total_predictions_%s_%s' % (topk,present_tag)] = sum(score_dict['num_predictions@{}_{}'.format(topk, present_tag)])
+            names['total_predictions_%s_%s' % (topk, present_tag)] = sum(
+                score_dict['num_predictions@{}_{}'.format(topk, present_tag)])
 
-            names['total_targets_%s_%s' % (topk,present_tag)] = sum(score_dict['num_targets@{}_{}'.format(topk, present_tag)])
+            names['total_targets_%s_%s' % (topk, present_tag)] = sum(
+                score_dict['num_targets@{}_{}'.format(topk, present_tag)])
 
-            names['total_num_matches_%s_%s' % (topk,present_tag)] = sum(score_dict['num_matches@{}_{}'.format(topk, present_tag)])
+            names['total_num_matches_%s_%s' % (topk, present_tag)] = sum(
+                score_dict['num_matches@{}_{}'.format(topk, present_tag)])
             # Compute the micro averaged recall, precision and F-1 score
 
-            names['micro_avg_precision_%s_%s' % (topk,present_tag)], names['micro_avg_recall_%s_%s' % (topk,present_tag)], names['micro_avg_f1_score_%s_%s' % (topk,present_tag)] = compute_classification_metrics(
-                names['total_num_matches_%s_%s' % (topk,present_tag)], names['total_predictions_%s_%s' % (topk,present_tag)],
-                names['total_targets_%s_%s' % (topk,present_tag)])
+            names['micro_avg_precision_%s_%s' % (topk, present_tag)], names[
+                'micro_avg_recall_%s_%s' % (topk, present_tag)], names[
+                'micro_avg_f1_score_%s_%s' % (topk, present_tag)] = compute_classification_metrics(
+                names['total_num_matches_%s_%s' % (topk, present_tag)],
+                names['total_predictions_%s_%s' % (topk, present_tag)],
+                names['total_targets_%s_%s' % (topk, present_tag)])
 
-            names['macro_avg_precision_%s_%s' % (topk,present_tag)] = sum(score_dict['precision@{}_{}'.format(topk, present_tag)]) / len(
+            names['macro_avg_precision_%s_%s' % (topk, present_tag)] = sum(
+                score_dict['precision@{}_{}'.format(topk, present_tag)]) / len(
                 score_dict['precision@{}_{}'.format(topk, present_tag)]) if len(
                 score_dict['precision@{}_{}'.format(topk, present_tag)]) > 0 else 0.0
 
-            names['macro_avg_recall_%s_%s' % (topk,present_tag)] = sum(score_dict['recall@{}_{}'.format(topk, present_tag)]) / len(
+            names['macro_avg_recall_%s_%s' % (topk, present_tag)] = sum(
+                score_dict['recall@{}_{}'.format(topk, present_tag)]) / len(
                 score_dict['recall@{}_{}'.format(topk, present_tag)]) if len(
                 score_dict['recall@{}_{}'.format(topk, present_tag)]) > 0 else 0.0
 
-            names['macro_avg_f1_score_%s_%s' % (topk,present_tag)] = float(2 * names['macro_avg_precision_%s_%s' % (topk,present_tag)] * names['macro_avg_recall_%s_%s' % (topk,present_tag)]) / (
-                    names['macro_avg_precision_%s_%s' % (topk,present_tag)] + names['macro_avg_recall_%s_%s' % (topk,present_tag)]) if (
-                    names['macro_avg_precision_%s_%s' % (topk,present_tag)] + names['macro_avg_recall_%s_%s' % (topk,present_tag)]) > 0 else 0.0
+            names['macro_avg_f1_score_%s_%s' % (topk, present_tag)] = float(
+                2 * names['macro_avg_precision_%s_%s' % (topk, present_tag)] * names[
+                    'macro_avg_recall_%s_%s' % (topk, present_tag)]) / (names['macro_avg_precision_%s_%s' % (
+                                                                              topk, present_tag)] + names[
+                                                                                  'macro_avg_recall_%s_%s' % (
+                                                                                  topk, present_tag)]) if (names['macro_avg_precision_%s_%s' % (topk, present_tag)] +
+                                                                                                                  names['macro_avg_recall_%s_%s' % (topk,present_tag)]) > 0 else 0.0
 
-            names['MAP_%s_%s' % (topk,present_tag)] = sum(score_dict['AP@{}_{}'.format(topk, present_tag)]) / len(score_dict['AP@{}_{}'.format(topk, present_tag)]) if \
-                                                                                                            len(score_dict['AP@{}_{}'.format(topk, present_tag)])>0 else 0
+            names['MAP_%s_%s' % (topk, present_tag)] = sum(score_dict['AP@{}_{}'.format(topk, present_tag)]) / len(
+                score_dict['AP@{}_{}'.format(topk, present_tag)]) if \
+                len(score_dict['AP@{}_{}'.format(topk, present_tag)]) > 0 else 0
 
-            result['macro_avg_f1_score_%s_%s' % (topk,present_tag)]=names['macro_avg_f1_score_%s_%s' % (topk,present_tag)]
-            result['MAP_%s_%s' % (topk,present_tag)]=names['MAP_%s_%s' % (topk,present_tag)]
+            result['macro_avg_f1_score_%s_%s' % (topk, present_tag)] = names[
+                'macro_avg_f1_score_%s_%s' % (topk, present_tag)]
+            result['MAP_%s_%s' % (topk, present_tag)] = names['MAP_%s_%s' % (topk, present_tag)]
+            result['macro_avg_precision_%s_%s' % (topk, present_tag)] = names[
+                'macro_avg_precision_%s_%s' % (topk, present_tag)]
+            result['macro_avg_recall_%s_%s' % (topk, present_tag)] = names[
+                'macro_avg_recall_%s_%s' % (topk, present_tag)]
     result = {k: round(v, 4) for k, v in result.items()}
     return result, decoded_preds, decoded_labels
 
@@ -617,7 +637,7 @@ def main(seed, data_name, singe_data_args, test_dataset_name,do_train):
 
     train_dataset, val_dataset, test_dataset = fetch_datasets(training_args)
 
-    model = One2SetBartForConditionalGeneration.from_pretrained(model_name)
+    model = One2SetBartForConditionalGeneration.from_pretrained(model_name,ignore_mismatched_sizes=True)
     if 'KP20K' in training_args.singe_data_args['train_data_path']:
         tokenizer.add_tokens(['<eos>'], special_tokens=True)
     model.resize_token_embeddings(len(tokenizer))
@@ -742,14 +762,7 @@ if __name__ == "__main__":
 
         tokenizer = BartTokenizer.from_pretrained('facebook/bart-base')
         tokenizer.add_tokens(['<number>', '<url>', '<mention>', '<digit>', '<eos>', '<NULL>'], special_tokens=True)
-        train_dataset = 'CMKP'#CMKP,Twitter,StackExchange,KP20K
-        test_dataset_name = 'CMKP'#CMKP,Twitter,StackExchange, or kp20k,inspec,nus,krapivin,semeval
+        train_dataset = 'KP20K'#CMKP,Twitter,StackExchange,KP20K
+        test_dataset_name = 'KP20K'#CMKP,Twitter,StackExchange, or kp20k,inspec,nus,krapivin,semeval
         do_train = True
         main(seed,train_dataset, all_data_args[train_dataset],test_dataset_name, do_train)
-
-
-
-
-
-
-
