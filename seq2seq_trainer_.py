@@ -332,11 +332,19 @@ class Seq2SeqTrainer(Trainer):
                 pad_token_id = self.model.config.pad_token_id
             else:
                 raise ValueError("Pad_token_id must be set in the configuration of the textonly_model, in order to pad tensors")
+        batch_size = None
+        max_kp_num = None
 
+        if len(tensor.size())>2:
+            batch_size = tensor.shape[0]
+            max_kp_num = tensor.shape[1]
+            tensor = tensor.view(batch_size*max_kp_num,-1)
         padded_tensor = pad_token_id * torch.ones(
             (tensor.shape[0], max_length), dtype=tensor.dtype, device=tensor.device
         )
         padded_tensor[:, : tensor.shape[-1]] = tensor
+        if max_kp_num is not None:
+            padded_tensor = padded_tensor.view(batch_size, max_kp_num, -1)
         return padded_tensor
     def evaluation_loop(
         self,
