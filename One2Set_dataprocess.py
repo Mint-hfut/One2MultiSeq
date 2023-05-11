@@ -16,8 +16,8 @@ def dataprocess(src_path, data_type):
             remove_title_eos=True
             srcs = src_lines.readlines()
             trgs = trg_lines.readlines()
-            if os.path.exists(src_path+f'/{data_type}_One2Set.pt'):
-                return
+            # if os.path.exists(src_path+f'/{data_type}_One2Set.pt'):
+            #     return
             for i in range(len(srcs)):
                 if len(srcs[i])<=2:
                     continue
@@ -39,15 +39,22 @@ def dataprocess(src_path, data_type):
                 trg = trgs[i].split(';')
                 preset_trg = []
                 absent_trg = []
-                present_is_end = False
-                for word in trg:
-                    if '<peos' not in word and present_is_end==False:
-                        preset_trg.append(word.strip())
-                    elif '<peos>' == word.strip():
-                        present_is_end = True
-                        continue
-                    else:
-                        absent_trg.append(word.strip())
+                if 'KP20K' in src_path:
+                    present_is_end = False
+                    for word in trg:
+                        if '<peos' not in word and present_is_end==False:
+                            preset_trg.append(word.strip())
+                        elif '<peos>' == word.strip():
+                            present_is_end = True
+                            continue
+                        else:
+                            absent_trg.append(word.strip())
+                else:
+                    for word in trg:
+                        if word.strip() in src:
+                            preset_trg.append(word.strip())
+                        else:
+                            absent_trg.append(word.strip())
                 mid_len = max_kp_num // 2
                 if len(preset_trg) > mid_len:
                     preset_trg = preset_trg[:mid_len]
@@ -85,10 +92,10 @@ def dataprocess(src_path, data_type):
                     print(f"completed：{len(all_examples)}",)
     torch.save(all_examples,open(src_path+f'/{data_type}_One2Set.pt', 'wb'))
 
-datapath = [[['data/CMKP_data'],['train','valid','test']],[['data/Twitter_data'],['train','valid','test']],[['data/StackExchange_data'],['train','valid','test']]
-            ,[['data/KP20K/kp20k_separated'],['train','valid']],[['data/KP20K/testsets/kp20k'],['test']],[['data/KP20K/testsets/inspec'],['test']],[['data/KP20K/testsets/krapivin'],['test']],
-            [['data/KP20K/testsets/nus'],['test']],[['data/KP20K/testsets/semeval'],['test']]]
-
+#datapath = [[['data/CMKP_data'],['train','valid','test']],[['data/Twitter_data'],['train','valid','test']],[['data/StackExchange_data'],['train','valid','test']]]
+            # ,[['data/KP20K/kp20k_separated'],['train','valid']],[['data/KP20K/testsets/kp20k'],['test']],[['data/KP20K/testsets/inspec'],['test']],[['data/KP20K/testsets/krapivin'],['test']],
+            # [['data/KP20K/testsets/nus'],['test']],[['data/KP20K/testsets/semeval'],['test']]]
+datapath = [[['data/KP20K/kp20k_separated'],['train','valid']],[['data/KP20K/testsets/kp20k'],['test']],[['data/KP20K/testsets/inspec'],['test']],[['data/KP20K/testsets/krapivin'],['test']],[['data/KP20K/testsets/nus'],['test']],[['data/KP20K/testsets/semeval'],['test']]]
 for path, datatypes in datapath:
     for datatype in datatypes:
             dataprocess(path[0], datatype)
