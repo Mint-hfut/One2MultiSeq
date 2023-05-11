@@ -503,10 +503,10 @@ class One2SetBartModel(BartModel):
                 memory_bank = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
                 state = self.decoder.init_state_(memory_bank[0], attention_mask)
                 control_embed = self.decoder.forward_seg(state)
-                input_tokens = input_ids.new_ones(batch_size, self.max_kp_num, self.assign_steps + 1)
+                input_tokens = input_ids.new_ones(batch_size, self.max_kp_num, self.assign_steps + 2)
                 decoder_dists = []
                 input_tokens[:, :, 0] = self.config.decoder_start_token_id
-                for t in range(1, self.assign_steps + 1):
+                for t in range(1, self.assign_steps + 2):
                     decoder_inputs = input_tokens[:, :, :t]
                     # decoder_inputs = decoder_inputs.masked_fill(decoder_inputs.gt(self.config.vocab_size - 1),
                     #                                             self.tokenizer.unk_token_id)
@@ -519,22 +519,25 @@ class One2SetBartModel(BartModel):
                                                   use_cache=False)
                     decoder_dist = decoder_output.last_hidden_state
                     decoder_dist = F.softmax(self.output_layer(decoder_dist), -1)
-                    input_tokens[:, :, t] = decoder_dist.argmax(-1)
-                    decoder_dists.append(decoder_dist.reshape(batch_size, self.max_kp_num, 1, -1))
+                    if t == 1:
+                        input_tokens[:, :, t] = self.config.bos_token_id
+                    else:
+                        input_tokens[:, :, t] = decoder_dist.argmax(-1)
+                        decoder_dists.append(decoder_dist.reshape(batch_size, self.max_kp_num, 1, -1))
 
                 decoder_dists = torch.cat(decoder_dists, -2)
 
                 if self.seperate_pre_ab:
                     mid_idx = self.max_kp_num // 2
                     pre_reorder_index = hungarian_assign(decoder_dists[:, :mid_idx],
-                                                         labels[:, :mid_idx, :self.assign_steps],
+                                                         labels[:, :mid_idx, 1:self.assign_steps+1],
                                                          ignore_indices=[self.tokenizer.convert_tokens_to_ids('<NULL>'),
                                                          self.config.pad_token_id])
                     labels[:, :mid_idx] = labels[:, :mid_idx][pre_reorder_index]
                     trg_mask[:, :mid_idx] = trg_mask[:, :mid_idx][pre_reorder_index]
 
                     ab_reorder_index = hungarian_assign(decoder_dists[:, mid_idx:],
-                                                        labels[:, mid_idx:, :self.assign_steps],
+                                                        labels[:, mid_idx:, 1:self.assign_steps+1],
                                                         ignore_indices=[self.tokenizer.convert_tokens_to_ids('<NULL>'),
                                                          self.config.pad_token_id])
                     labels[:, mid_idx:] = labels[:, mid_idx:][ab_reorder_index]
