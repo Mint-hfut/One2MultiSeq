@@ -716,7 +716,7 @@ if __name__ == "__main__":
                               'train_data_path':'data/CMKP_data',
                               'test_data_path':{'CMKP': 'data/CMKP_data'},
                                'meng_rui_precision':False,
-                               'topk_list':[1],# [3, 5]
+                               'topk_list':[1],# [3, 5]. Due to different decoder max lengths set for calculating different F1 values, please calculate F1@1 and F1@3 separately.
                               },
 
                      'Twitter': {'encoder_input_length': 64,
@@ -728,7 +728,7 @@ if __name__ == "__main__":
                               'train_data_path': 'data/Twitter_data',
                               'test_data_path': {'Twitter': 'data/Twitter_data'},
                               'meng_rui_precision':False,
-                                'topk_list': [1],# [3, 5]
+                                'topk_list': [1],# [3, 5]. Due to different decoder max lengths set for calculating different F1 values, please calculate F1@1 and F1@3 separately. 
                                  },
 
                      'StackExchange': {'encoder_input_length': 128,
@@ -740,7 +740,7 @@ if __name__ == "__main__":
                               'train_data_path': 'data/StackExchange_data',
                               'test_data_path': {'StackExchange': 'data/StackExchange_data'},
                                 'meng_rui_precision':False,
-                                'topk_list': [3],#[5]
+                                'topk_list': [3],#[5]. Due to different decoder max lengths set for calculating different F1 values, please calculate F1@3 and F1@5 separately.
                                        },
 
                      'KP20K': {'encoder_input_length': 192,
