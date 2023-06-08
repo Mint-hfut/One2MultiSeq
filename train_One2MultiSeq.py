@@ -85,14 +85,10 @@ def fetch_datasets(training_args=None):
 
 stemmer = PorterStemmer()
 
-
 def postprocess_text(src_lines, preds, labels, sep_token):
-    src_lines = [src_line.strip().split('<seg>')[0].strip().split() for src_line in src_lines]
-    src_lines = [[stemmer.stem(w.strip().lower()) for w in src_line] for src_line in src_lines]
-    preds = [pred.lower().replace('</s>', '').replace('<pad>', '').replace('<s>', '').split(sep_token) for pred in preds]
-    labels = [label.lower().replace('</s>', '').replace('<pad>', '').replace('<s>', '').split(sep_token) for label in labels]
-    preds = [[' '.join([stemmer.stem(w) for w in p.split()]) for p in pred] for pred in preds]
-    labels = [[' '.join([stemmer.stem(w) for w in p.split()]) for p in label] for label in labels]
+    src_lines = [src_line.strip().split('<seg>')[0].strip().replace('<eos>', '').split() for src_line in src_lines]
+    preds = [pred.replace('</s>', '').replace('<pad>', '').replace('<s>', '').split(sep_token) for pred in preds]
+    labels = [label.replace('</s>', '').replace('<pad>', '').replace('<s>', '').split(sep_token) for label in labels]
     preds = [[p.strip() for p in pred if len(p.strip()) > 0] for pred in preds]
     labels = [[p.strip() for p in label if len(p.strip()) > 0] for label in labels]
 
@@ -146,7 +142,7 @@ def average_precision_at_k(k_list, trg_list, pred_list):  # Used to calculate th
     return average_precision_array[return_indices]
 
 
-def check_present_keyphrases(src_str, keyphrase_str_list):
+def check_present_keyphrases(src_str, keyphrase_str_list, match_by_str=False):
     """
     :param src_str: stemmed word list of source text
     :param keyphrase_str_list: stemmed list of word list
@@ -161,27 +157,32 @@ def check_present_keyphrases(src_str, keyphrase_str_list):
         if joined_keyphrase_str.strip() == "":  # if the keyphrase is an empty string
             is_present[i] = False
         else:
-
-            # check if it appears in source text
-            match = False
-            for src_start_idx in range(len(src_str) - len(keyphrase_word_list) + 1):
-                match = True
-                for keyphrase_i, keyphrase_w in enumerate(keyphrase_word_list):
-                    src_w = src_str[src_start_idx + keyphrase_i]
-                    if src_w != keyphrase_w:
-                        match = False
+            if not match_by_str:  # match by word
+                # check if it appears in source text
+                match = False
+                for src_start_idx in range(len(src_str) - len(keyphrase_word_list) + 1):
+                    match = True
+                    for keyphrase_i, keyphrase_w in enumerate(keyphrase_word_list):
+                        src_w = src_str[src_start_idx + keyphrase_i]
+                        if src_w != keyphrase_w:
+                            match = False
+                            break
+                    if match:
                         break
                 if match:
-                    break
-            if match:
-                is_present[i] = True
-            else:
-                is_present[i] = False
+                    is_present[i] = True
+                else:
+                    is_present[i] = False
+            else:  # match by str
+                if joined_keyphrase_str in ' '.join(src_str):
+                    is_present[i] = True
+                else:
+                    is_present[i] = False
     return is_present
 
 
-def separate_present_absent_by_source(src_token_list_stemmed, keyphrase_token_2dlist_stemmed):
-    is_present_mask = check_present_keyphrases(src_token_list_stemmed, keyphrase_token_2dlist_stemmed)
+def separate_present_absent_by_source(src_token_list_stemmed, keyphrase_token_2dlist_stemmed, match_by_str):
+    is_present_mask = check_present_keyphrases(src_token_list_stemmed, keyphrase_token_2dlist_stemmed, match_by_str)
     present_keyphrase_token2dlist = []
     absent_keyphrase_token2dlist = []
     for keyphrase_token_list, is_present in zip(keyphrase_token_2dlist_stemmed, is_present_mask):
@@ -375,7 +376,7 @@ def average_precision_at_ks(r, k_list, num_predictions, num_trgs):
     return average_precision_array[return_indices]
 
 
-def update_score_dict(trg_token_2dlist_stemmed, pred_token_2dlist_stemmed, k_list, score_dict, tag,meng_rui_precision):
+def update_score_dict(trg_token_2dlist_stemmed, pred_token_2dlist_stemmed, k_list, score_dict, tag, meng_rui_precision):
     num_targets = len(trg_token_2dlist_stemmed)
     num_predictions = len(pred_token_2dlist_stemmed)
 
@@ -457,13 +458,6 @@ def compute_extra_one_word_seqs_mask(str_list):
         mask[i] = True
     return mask, num_one_word_seqs
 
-
-def remove_M(top_list):
-    if 'M' in top_list:
-        top_list.remove('M')
-    return top_list
-
-
 def compute_metrics(eval_preds, num_return_sequences=1, topk_list=[5,'M'], present_tags =['all','present','absent'],src_lines=None, meng_rui_precision = False):
     score_dict = defaultdict(list)
     ignore_pad_token_for_loss = True
@@ -481,7 +475,10 @@ def compute_metrics(eval_preds, num_return_sequences=1, topk_list=[5,'M'], prese
         # Replace -100 in the labels as we can't decode them.
         labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
     decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=False)
-
+    if 'KP20K' in src_lines:
+        is_KP20K = True
+    else:
+        is_KP20K = False
     # Some simple post-processing
     if isinstance(src_lines,str):
         src_lines = open(src_lines, 'r', encoding='utf-8').readlines()
@@ -494,19 +491,14 @@ def compute_metrics(eval_preds, num_return_sequences=1, topk_list=[5,'M'], prese
 
     if len(decoded_preds) != len(decoded_labels):  # 将num_return_sequences个关键词序列进行拼接
         decoded_preds_for_cal_at_k = [[] for _ in range(len(decoded_labels))]
-        decoded_preds_for_cal_at_M = [[] for _ in range(len(decoded_labels))]
         assert len(decoded_preds) // num_return_sequences == len(decoded_labels)
         for i in range(len(decoded_labels)):
             for j in range(num_return_sequences):
                 index = i * num_return_sequences + j
                 for k in decoded_preds[index]:
-                    if j == 0:#Use only the keyphrases in the first sentence to calculate M
-                        if k not in decoded_preds_for_cal_at_M[i] and len(k) > 1:
-                            decoded_preds_for_cal_at_M[i].append(k)
                     if k not in decoded_preds_for_cal_at_k[i] and len(k) > 1:#Use all the keyphrases in the returned sentence (beam search)
                         decoded_preds_for_cal_at_k[i].append(k)
         decoded_preds = decoded_preds_for_cal_at_k
-        decoded_preds_for_M = decoded_preds_for_cal_at_M
     else:
         decoded_preds_for_cal_at_k = [[] for _ in range(len(decoded_labels))]
         for i in range(len(decoded_labels)):
@@ -514,55 +506,32 @@ def compute_metrics(eval_preds, num_return_sequences=1, topk_list=[5,'M'], prese
                 if k not in decoded_preds_for_cal_at_k[i] and len(k) > 1:#Use all the keyphrases in the returned sentence (beam search)
                     decoded_preds_for_cal_at_k[i].append(k)
         decoded_preds = decoded_preds_for_cal_at_k
-        decoded_preds_for_M = decoded_preds
 
-    for src, pred, pred_for_M, label in zip(src_text, decoded_preds,decoded_preds_for_M, decoded_labels):
+    for src, pred, label in zip(src_text, decoded_preds, decoded_labels):
         trg_token_2dlist = [trg_str.strip().split(' ') for trg_str in label]
         pred_token_2dlist = [pred_str.strip().split(' ') for pred_str in pred]
-        pred_token_2dlist_for_M = [pred_str.strip().split(' ') for pred_str in pred_for_M]
-        #pred_token_2dlist_for_M = [pred_str_for_M.strip().split(' ') for pred_str_for_M in pred_for_M]
+        src = stem_word_list(src)
         stemmed_trg_token_2dlist = stem_str_list(trg_token_2dlist)
         stemmed_pred_token_2dlist = stem_str_list(pred_token_2dlist)
-        stemmed_pred_token_2dlist_for_M = stem_str_list(pred_token_2dlist_for_M)
         filtered_stemmed_pred_token_2dlist, num_duplicated_predictions = filter_prediction(False,
                                                                                            True,
                                                                                            stemmed_pred_token_2dlist)
-        filtered_stemmed_pred_token_2dlist_for_M, num_duplicated_predictions_for_M = filter_prediction(False,
-                                                                                           True,
-                                                                                           stemmed_pred_token_2dlist_for_M)
         unique_stemmed_trg_token_2dlist, num_duplicated_trg = find_unique_target(stemmed_trg_token_2dlist)
         present_filtered_stemmed_pred, absent_filtered_stemmed_pred = separate_present_absent_by_source(
-            src, filtered_stemmed_pred_token_2dlist)
-        present_filtered_stemmed_pred_for_M, absent_filtered_stemmed_pred_for_M = separate_present_absent_by_source(
-            src, filtered_stemmed_pred_token_2dlist_for_M)
+            src, filtered_stemmed_pred_token_2dlist, match_by_str=False)
         present_unique_stemmed_trg, absent_unique_stemmed_trg = separate_present_absent_by_source(
-            src, unique_stemmed_trg_token_2dlist)
-        topk_list_ = copy.deepcopy(topk_list)
-        remove_M(topk_list_)
-        if filtered_stemmed_pred_token_2dlist:
-            score_dict = update_score_dict(unique_stemmed_trg_token_2dlist,
-                                           filtered_stemmed_pred_token_2dlist,
-                                           topk_list_, score_dict, 'all', meng_rui_precision)
-            if 'M' in topk_list:
-                score_dict = update_score_dict(unique_stemmed_trg_token_2dlist,
-                                               filtered_stemmed_pred_token_2dlist,
-                                               ['M'], score_dict, 'all', meng_rui_precision)
-        if present_unique_stemmed_trg:
+            src, unique_stemmed_trg_token_2dlist, match_by_str=False)
+        score_dict = update_score_dict(unique_stemmed_trg_token_2dlist,
+                                       filtered_stemmed_pred_token_2dlist,
+                                       topk_list, score_dict, 'all', meng_rui_precision)
+        if present_unique_stemmed_trg or is_KP20K:
             score_dict = update_score_dict(present_unique_stemmed_trg,
                                            present_filtered_stemmed_pred,
-                                           topk_list_, score_dict, 'present', meng_rui_precision)
-            if 'M' in topk_list:
-                score_dict = update_score_dict(present_unique_stemmed_trg,
-                                               present_filtered_stemmed_pred_for_M,
-                                               ['M'], score_dict, 'present', meng_rui_precision)
-        if absent_unique_stemmed_trg:
+                                           topk_list, score_dict, 'present', meng_rui_precision)
+        if absent_unique_stemmed_trg or is_KP20K:
             score_dict = update_score_dict(absent_unique_stemmed_trg,
                                            absent_filtered_stemmed_pred,
-                                           topk_list_, score_dict, 'absent', meng_rui_precision)
-            if 'M' in topk_list:
-                score_dict = update_score_dict(absent_unique_stemmed_trg,
-                                               absent_filtered_stemmed_pred_for_M,
-                                               ['M'], score_dict, 'absent', meng_rui_precision)
+                                           topk_list, score_dict, 'absent', meng_rui_precision)
     names = locals()
     result = {}
     for topk in topk_list:
@@ -745,7 +714,7 @@ if __name__ == "__main__":
 
                      'KP20K': {'encoder_input_length': 192,
                               'decoder_input_length': 96,
-                              'generation_max_length': 24,
+                              'generation_max_length': 96,
                                'per_device_train_batch_size': 32,
                                'warmup_steps': 8000,
                                'learning_rate': 5e-5 if 'base' in model_name else 4e-5,
