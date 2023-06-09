@@ -4,7 +4,7 @@ from transformers.models.bart.modeling_bart import shift_tokens_right
 import torch
 model_name = 'facebook/bart-base'
 config = BartConfig()
-tokenizer = BartTokenizer.from_pretrained(model_name, sep_token='<sep>')
+tokenizer = BartTokenizer.from_pretrained('facebook/bart-base', sep_token='<sep>')
 tokenizer.add_tokens(['<number>', '<url>', '<mention>'], special_tokens=True)
 def encode(src,trg,encoder_input_length,decoder_input_length, is_CMKP_data):
     original_text_encodings = None
@@ -53,8 +53,8 @@ def dataprocess(src_path,data_type,encoder_input_length,decoder_input_length,is_
             src_line = src_lines.readlines()
             trg_line = trg_lines.readlines()
             assert len(src_line) == len(trg_line)
-            if os.path.exists(src_path+f'/{data_type}_One2{paradigm}.pt'):
-                return
+            # if os.path.exists(src_path+f'/{data_type}_One2{paradigm}.pt'):
+            #     return
             for i in range(len(src_line)):
                 src = src_line[i].strip()
                 trg = trg_line[i].strip()
@@ -62,28 +62,26 @@ def dataprocess(src_path,data_type,encoder_input_length,decoder_input_length,is_
                     continue
                 trgs = trg.split(';')
                 if '<peos>' in trgs:
-                    trgs.remove('<peos>')
-                elif '<peos>\n' in trgs:
-                    trgs.remove('<peos>\n')
-                else:
-                    pass
-                if src == '\n':
-                    continue
-                if data_type != 'test':
-                    present = []
-                    absent = []
-                    for i in trgs:
-                        if i in src:
-                            present.append(i)
-                        else:
-                            absent.append(i)
+                    index = trgs.index('<peos>')
+                    present = trgs[:index]
+                    absent = trgs[index+1:]
                     trgs_ordered = present + absent
                 else:
-                    trgs_ordered = trgs
-                trgs_connect1 = ['<sep>'.join(k.strip() for k in trgs_ordered)]
-                encodings = encode(src,trgs_connect1,encoder_input_length,decoder_input_length, is_CMKP_data)
-
-                all_examples.append(encodings)
+                    if data_type != 'test':
+                        present = []
+                        absent = []
+                        for i in trgs:
+                            if i in src:
+                                present.append(i)
+                            else:
+                                absent.append(i)
+                        trgs_ordered = present + absent
+                    else:
+                        trgs_ordered = trgs
+                if len(trgs_ordered)>0:
+                    trgs_connect1 = ['<sep>'.join(k.strip() for k in trgs_ordered)]
+                    encodings = encode(src,trgs_connect1,encoder_input_length,decoder_input_length, is_CMKP_data)
+                    all_examples.append(encodings)
                 if is_train:
                     trgs_ordered.reverse()
                     trgs_connect2 = ['<sep>'.join(k.strip() for k in trgs_ordered)]
@@ -99,18 +97,19 @@ datapath = [[['data/CMKP_data'],['train','valid','test']],[['data/Twitter_data']
             [['data/KP20K/testsets/nus'],['test']],[['data/KP20K/testsets/semeval'],['test']]]
 
 for path, datatypes in datapath:
-    if 'kp20k_separated' in path[0]:
-        tokenizer.add_tokens(['<eos>'], special_tokens=True)
+    if 'KP20K' in path[0]:
+        tokenizer.sep_token = '</s>'
+        tokenizer.add_tokens(['<sep>','<eos>'], special_tokens=True)
     for datatype in datatypes:
-            if 'CMKP_data' in path[0]:
+            if 'CMKP' in path[0]:
                 encoder_input_length = 125
                 decoder_input_length = 16
                 is_CMKP_data = True
-            elif 'Twitter_data' in path[0]:
+            elif 'Twitter' in path[0]:
                 encoder_input_length = 64
                 decoder_input_length = 16
                 is_CMKP_data = False
-            elif 'StackExchange_data' in path[0]:
+            elif 'StackExchange' in path[0]:
                 encoder_input_length = 128
                 decoder_input_length = 24
                 is_CMKP_data = False
