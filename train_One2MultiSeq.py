@@ -609,7 +609,8 @@ def main(seed, data_name, singe_data_args, test_dataset_name,do_train):
     model = CopyBartForConditionalGeneration.from_pretrained(model_name,
         encoder_input_length=training_args.encoder_input_length, seed=training_args.seed, )
     if 'KP20K' in training_args.singe_data_args['train_data_path']:
-        tokenizer.add_tokens(['<eos>'], special_tokens=True)
+        tokenizer.sep_token = '</s>'
+        tokenizer.add_tokens(['<sep>','<eos>'], special_tokens=True)
     model.resize_token_embeddings(len(tokenizer))
     model.loss_weight = torch.ones(model.vocab_size).to("cuda:0")
 
@@ -730,9 +731,9 @@ if __name__ == "__main__":
                                },
              }
 
-        tokenizer = BartTokenizer.from_pretrained('facebook/bart-base', sep_token='<sep>')
+        tokenizer = BartTokenizer.from_pretrained('facebook/bart-base',sep_token='<sep>')
         tokenizer.add_tokens(['<number>', '<url>', '<mention>'], special_tokens=True)
-        train_dataset = 'CMKP'#CMKP,Twitter,StackExchange,KP20K
-        test_dataset_name = 'CMKP'#CMKP,Twitter,StackExchange, or kp20k,inspec,nus,krapivin,semeval
+        train_dataset = 'KP20K'#CMKP,Twitter,StackExchange,KP20K
+        test_dataset_name = 'KP20K'#CMKP,Twitter,StackExchange, or KP20K,inspec,nus,krapivin,semeval
         do_train = True
         main(seed,train_dataset, all_data_args[train_dataset],test_dataset_name, do_train)
