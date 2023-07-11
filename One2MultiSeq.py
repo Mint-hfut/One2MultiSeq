@@ -415,13 +415,13 @@ class CopyBartDecoder(BartDecoder):
             encoder_attention_mask = _expand_mask(encoder_attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1])
             if use_cache_original_text_attention_mask is not None:
                 use_cache_original_text_attention_mask = _expand_mask(use_cache_original_text_attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1])
-            if use_cache_original_text_attention_mask.shape[0] != encoder_attention_mask.shape[0]:
-                num_beams = int(encoder_attention_mask.shape[0] / use_cache_original_text_attention_mask.shape[0])
-                expanded_return_idx = (
-                    torch.arange(use_cache_original_text_attention_mask.shape[0]).view(-1, 1).repeat(1, num_beams).view(-1).to(
-                        use_cache_original_text_attention_mask.device)
-                )
-                use_cache_original_text_attention_mask = use_cache_original_text_attention_mask.index_select(0, expanded_return_idx)
+                if use_cache_original_text_attention_mask.shape[0] != encoder_attention_mask.shape[0]:
+                    num_beams = int(encoder_attention_mask.shape[0] / use_cache_original_text_attention_mask.shape[0])
+                    expanded_return_idx = (
+                        torch.arange(use_cache_original_text_attention_mask.shape[0]).view(-1, 1).repeat(1, num_beams).view(-1).to(
+                            use_cache_original_text_attention_mask.device)
+                    )
+                    use_cache_original_text_attention_mask = use_cache_original_text_attention_mask.index_select(0, expanded_return_idx)
         # embed positions
         positions = self.embed_positions(input_shape, past_key_values_length)
 
