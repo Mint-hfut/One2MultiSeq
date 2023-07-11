@@ -761,7 +761,7 @@ class CopyBartAttention(BartAttention):
             attn_weights_original = attn_weights_original.view(bsz * self.num_heads, tgt_len, src_len)
 
         attn_weights = F.softmax(attn_weights, dim=-1)
-        attn_weights_original=F.softmax(self.linear_1(torch.tanh(attn_weights_original)), dim=-1)
+        attn_weights_original=F.softmax(attn_weights_original, dim=-1)
         if layer_head_mask is not None:
             assert layer_head_mask.size() == (
                 self.num_heads,
