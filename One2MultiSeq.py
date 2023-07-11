@@ -757,11 +757,16 @@ class CopyBartAttention(BartAttention):
             ), f"Attention mask should be of size {(bsz, 1, tgt_len, src_len)}, but is {attention_mask.size()}"
             attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len) + attention_mask
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
-            attn_weights_original = attn_weights_original.view(bsz, self.num_heads, tgt_len, src_len) + use_cache_original_text_attention_mask
-            attn_weights_original = attn_weights_original.view(bsz * self.num_heads, tgt_len, src_len)
-
+            if use_cache_original_text_attention_mask is not None:
+                attn_weights_original = attn_weights_original.view(bsz, self.num_heads, tgt_len, src_len) + use_cache_original_text_attention_mask
+                attn_weights_original = attn_weights_original.view(bsz * self.num_heads, tgt_len, src_len)
+            else:
+                attn_weights_original = attn_weights
         attn_weights = F.softmax(attn_weights, dim=-1)
-        attn_weights_original=F.softmax(attn_weights_original, dim=-1)
+        if use_cache_original_text_attention_mask is not None:
+            attn_weights_original = F.softmax(attn_weights_original, dim=-1)
+        else:
+            attn_weights_original = attn_weights
         if layer_head_mask is not None:
             assert layer_head_mask.size() == (
                 self.num_heads,
@@ -775,7 +780,10 @@ class CopyBartAttention(BartAttention):
             # In order to do so, attn_weights have to reshaped
             # twice and have to be reused in the following
             attn_weights_reshaped = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
-            attn_weights_original_reshaped = attn_weights_original.view(bsz, self.num_heads, tgt_len, src_len)
+            if use_cache_original_text_attention_mask is not None:
+                attn_weights_original_reshaped = attn_weights_original.view(bsz, self.num_heads, tgt_len, src_len)
+            else:
+                attn_weights_original_reshaped = attn_weights_reshaped
             attn_weights = attn_weights_reshaped.view(bsz * self.num_heads, tgt_len, src_len)
         else:
             attn_weights_reshaped = None
