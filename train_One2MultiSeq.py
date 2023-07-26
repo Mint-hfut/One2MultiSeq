@@ -686,7 +686,7 @@ if __name__ == "__main__":
                               'train_data_path':'data/CMKP_data',
                               'test_data_path':{'CMKP': 'data/CMKP_data'},
                                'meng_rui_precision':False,
-                               'topk_list':[1],3, 5],
+                               'topk_list':[1]#[3, 5],
                               },
 
                      'Twitter': {'encoder_input_length': 64,
@@ -698,7 +698,7 @@ if __name__ == "__main__":
                               'train_data_path': 'data/Twitter_data',
                               'test_data_path': {'Twitter': 'data/Twitter_data'},
                               'meng_rui_precision':False,
-                                'topk_list': [1,3, 5],
+                                'topk_list': [1]# [3, 5],
                                  },
 
                      'StackExchange': {'encoder_input_length': 128,
@@ -710,7 +710,7 @@ if __name__ == "__main__":
                               'train_data_path': 'data/StackExchange_data',
                               'test_data_path': {'StackExchange': 'data/StackExchange_data'},
                                 'meng_rui_precision':False,
-                                'topk_list': [3,5],
+                                'topk_list': [3],#[5]
                                        },
 
                      'KP20K': {'encoder_input_length': 192,
