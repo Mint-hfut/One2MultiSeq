@@ -733,7 +733,7 @@ if __name__ == "__main__":
 
         tokenizer = BartTokenizer.from_pretrained('facebook/bart-base',sep_token='<sep>')
         tokenizer.add_tokens(['<number>', '<url>', '<mention>'], special_tokens=True)
-        train_dataset = 'KP20K'#CMKP,Twitter,StackExchange,KP20K
-        test_dataset_name = 'KP20K'#CMKP,Twitter,StackExchange, or KP20K,inspec,nus,krapivin,semeval
+        train_dataset = 'CMKP'#CMKP,Twitter,StackExchange,KP20K
+        test_dataset_name = 'CMKP'#CMKP,Twitter,StackExchange, or KP20K,inspec,nus,krapivin,semeval
         do_train = True
         main(seed,train_dataset, all_data_args[train_dataset],test_dataset_name, do_train)
